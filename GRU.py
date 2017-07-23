@@ -255,8 +255,8 @@ class AttGRU(object):
 
 class BiGRU(object):
     def __init__(self, rng,n_input, n_hidden,
-                 x, E, mask, output_mode='sum',
-                 is_train=1, p=0.5):
+                 x, mask, output_mode='sum',
+                 is_train=1, dropout=0.5):
         # https://github.com/nyu-dl/dl4mt-tutorial/tree/master/session3
         self.rng = rng
 
@@ -264,12 +264,11 @@ class BiGRU(object):
         self.n_hidden = n_hidden
 
         self.x = x
-        self.E = E
         self.mask = mask
 
         self.output_mode=output_mode
         self.is_train = is_train
-        self.p = p
+        self.dropout = dropout
 
         # Update gate
         init_W = np.asarray(np.random.uniform(low=-np.sqrt(1. / n_input),
@@ -368,8 +367,8 @@ class BiGRU(object):
             return h_t
 
         state_pre = T.zeros((self.x.shape[-1], self.n_hidden), dtype=theano.config.floatX)
-        state_below = T.dot(self.E[self.x, :], self.W) + self.b
-        state_belowx = T.dot(self.E[self.x, :], self.Wx) + self.bx
+        state_below = T.dot(self.x, self.W) + self.b
+        state_belowx = T.dot(self.x, self.Wx) + self.bx
         h, _ = theano.scan(fn=_recurrence,
                            sequences=[state_below, state_belowx, self.mask],
                            non_sequences=[self.Ux],
@@ -377,8 +376,8 @@ class BiGRU(object):
                            truncate_gradient=-1)
 
         state_pre = T.zeros((self.x.shape[-1], self.n_hidden), dtype=theano.config.floatX)
-        state_below = T.dot(self.E[self.x, :], self.Wr) + self.br
-        state_belowx = T.dot(self.E[self.x, :], self.Wxr) + self.bxr
+        state_below = T.dot(self.x, self.Wr) + self.br
+        state_belowx = T.dot(self.x, self.Wxr) + self.bxr
         hr, _ = theano.scan(fn=_recurrence,
                             sequences=[state_below, state_belowx, self.mask],
                             non_sequences=[self.Uxr],
@@ -398,8 +397,8 @@ class BiGRU(object):
 
         self.context=T.concatenate([h,hr],axs=-1)
         # Dropout
-        if self.p > 0:
-            drop_mask = self.rng.binomial(n=1, p=1 - self.p, size=output.shape, dtype=theano.config.floatX)
-            self.activation = T.switch(self.is_train, output * drop_mask, output * (1 - self.p))
+        if self.dropout > 0:
+            drop_mask = self.rng.binomial(n=1, p=1 - self.dropout, size=output.shape, dtype=theano.config.floatX)
+            self.activation = T.switch(self.is_train, output * drop_mask, output * (1 - self.dropout))
         else:
             self.activation = T.switch(self.is_train, output, output)

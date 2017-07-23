@@ -3,6 +3,7 @@ import cPickle as pickle
 import numpy as np
 import h5py
 import theano
+
 def fopen(filepath,mode='r'):
     if filepath.endswith('.gz'):
         return gzip.open(filepath,mode)
@@ -12,17 +13,27 @@ def fopen(filepath,mode='r'):
         return pickle.load(open(filepath,'r'))
     return open(filepath,mode)
 
+def ortho_weight(ndim):
+    W= np.random.randn(ndim,ndim)
+    u,s,v=np.linalg.svd(W)
+    return u.astype(theano.config.floatX)
 
+def norm_weight(nin,nout=None,scale=0.01,ortho=True):
+    if nout is None:
+        nout=nin
+    if nout==nin and ortho:
+        W=ortho_weight(nin)
+    else:
+        W=scale * np.random.randn(nin,nout)
+    return W.astype(theano.config.floatX)
 
-def init_norm(n_in,n_out):
-    init_W=np.asarray(np.random.randn(n_in,n_out)*0.1,dtype=theano.config.floatX)
-    return init_W
 
 class TextIterator(object):
-    def __init__(self,source,target,source_dict,target_dict,n_batch,maxlen=None):
+    def __init__(self,source,target,source_dict,target_dict,n_batch,maxlen=20):
         self.source=fopen(source)
         self.target=fopen(target)
         self.maxlen=maxlen
+        self.n_batch=n_batch
         self.source_dict=fopen(source_dict)
         self.target_dict=fopen(target_dict)
         self.end_of_data=False
@@ -50,16 +61,14 @@ class TextIterator(object):
                 # read from source file and map to word index
                 try:
                     s = self.source.readline()
-                    if s == '': break
                     t = self.target.readline()
-                    if t == "": break
+                    if s == '' or t=='': break
                 except IndexError:
                     break
                 s=[self.source_dict[w] if w in self.source_dict else self.source_dict['unk'] for w in s]
+                t=[self.target_dict[w] if w in self.target_dict else self.target_dict['unk'] for w in t]
 
-                t=[self.target_dict[w] if w in self.target_dict else self.target['unk'] for w in t]
-
-                if len(s)>self.maxlen and len(t)>self.maxlen:
+                if self.maxlen>0 and len(s)>self.maxlen and len(t)>self.maxlen:
                     continue
                 source.append(s)
                 target.append(t)
@@ -74,7 +83,6 @@ class TextIterator(object):
 
         source = [source[i] for i in tidx]
         target = [target[i] for i in tidx]
-
 
         if len(source)<=0 or len(target)<=0:
             self.end_of_data=False
