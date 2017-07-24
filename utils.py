@@ -6,46 +6,49 @@ import theano
 import json
 import os
 
+
 def load_config(cfg_filename):
     '''Load a configuration file.'''
     with open(cfg_filename) as f:
-        args=json.load(f)
+        args = json.load(f)
     return args
 
-def merge_dict(cfg_defaults,cfg_user):
-    for k,v in cfg_defaults.items():
-        if k not in cfg_user:
-            cfg_user[k]=v
-        elif isinstance(v,dict):
-            merge_dict(v,cfg_user[k])
 
-def load_config_with_defaults(cfg_filename,cfg_default_filename):
+def merge_dict(cfg_defaults, cfg_user):
+    for k, v in cfg_defaults.items():
+        if k not in cfg_user:
+            cfg_user[k] = v
+        elif isinstance(v, dict):
+            merge_dict(v, cfg_user[k])
+
+
+def load_config_with_defaults(cfg_filename, cfg_default_filename):
     """Load a configuration with defaults."""
-    cfg_defaults=load_config(cfg_default_filename)
-    cfg=load_config(cfg_filename)
-    if cfg_filename!= cfg_default_filename:
-        merge_dict(cfg_defaults,cfg)
+    cfg_defaults = load_config(cfg_default_filename)
+    cfg = load_config(cfg_filename)
+    if cfg_filename != cfg_default_filename:
+        merge_dict(cfg_defaults, cfg)
     return cfg
 
 
-
-
-def save_model(f,model):
-    output_folder=os.path.dirname(f)
+def save_model(f, model):
+    output_folder = os.path.dirname(f)
     try:
         os.makedirs(output_folder)
     except Exception:
         pass
-    ps={}
+    ps = {}
     for p in model.params:
-        ps[p.name]=p.get_value()
-    pickle.dump(ps,open(f,'wb'))
+        ps[p.name] = p.get_value()
+    pickle.dump(ps, open(f, 'wb'))
 
-def load_model(f,model):
-    ps=pickle.load(open(f,'rb'))
+
+def load_model(f, model):
+    ps = pickle.load(open(f, 'rb'))
     for p in model.params:
         p.set_value(ps[p.name])
     return model
+
 
 def fopen(filepath, mode='r'):
     if filepath.endswith('.gz'):
@@ -55,13 +58,13 @@ def fopen(filepath, mode='r'):
     elif filepath.endswith('.pkl'):
         return pickle.load(open(filepath, 'r'))
     else:
-        vocab_dict={}
+        vocab_dict = {}
         with open(filepath, mode)as f:
             for line in f:
-                split_line=line.strip().split('\t')
-                if len(split_line)!=2: break
-                idx,word=split_line
-                vocab_dict[word]=int(idx)
+                split_line = line.strip().split('\t')
+                if len(split_line) != 2: break
+                idx, word = split_line
+                vocab_dict[word] = int(idx)
         return vocab_dict
 
 
@@ -80,9 +83,10 @@ def norm_weight(nin, nout=None, scale=0.01, ortho=True):
         W = scale * np.random.randn(nin, nout)
     return W.astype(theano.config.floatX)
 
+
 class TextIterator(object):
     def __init__(self, train_file, vocab_file, n_batch, maxlen=None):
-        self.train_data = open(train_file,'r')
+        self.train_data = open(train_file, 'r')
         self.maxlen = maxlen
         self.n_batch = n_batch
         self.envocab = fopen(vocab_file[0])
@@ -95,7 +99,7 @@ class TextIterator(object):
     def reset(self):
         self.train_data.seek(0)
 
-    def goto_line(self,line_num):
+    def goto_line(self, line_num):
         for _ in range(line_num):
             self.train_data.readline()
 
@@ -114,14 +118,14 @@ class TextIterator(object):
                 # read from source file and map to word index
                 try:
                     line = self.train_data.readline()
-                    if line=='': break
-                    splited_line=line.strip().split('#TAB#')
-                    if len(splited_line)!=2: break
-                    s,t=splited_line
-                    s=s.split(' ')
-                    t=t.split(' ')
+                    if line == '': break
+                    splited_line = line.strip().split('#TAB#')
+                    if len(splited_line) != 2: break
+                    s, t = splited_line
+                    s = s.split(' ')
+                    t = t.split(' ')
                     if self.maxlen[0] > 0 and len(s) > self.maxlen[0]:
-                        s=s[:self.maxlen[0]]
+                        s = s[:self.maxlen[0]]
                     if self.maxlen[1] > 0 and len(t) > self.maxlen[1]:
                         t = t[:self.maxlen[1]]
                 except IndexError:
@@ -217,29 +221,23 @@ class BiTextIterator(object):
 def prepare_data(seqs_x, seqs_y):
     # x: a list of sentenxes
     lengths_x = [len(s) for s in seqs_x]
-    lengths_y = [len(s)-1 for s in seqs_y]
+    lengths_y = [len(s) - 1 for s in seqs_y]
 
-    n_batch=len(seqs_x)
-    xmaxlen=np.max(lengths_x)
+    n_batch = len(seqs_x)
+    xmaxlen = np.max(lengths_x)
     ymaxlen = np.max(lengths_y)
 
-    enc_input=np.zeros((xmaxlen,n_batch),dtype='int32')
-    dec_input=np.zeros((ymaxlen,n_batch),dtype='int32')
+    enc_input = np.zeros((xmaxlen, n_batch), dtype='int32')
+    dec_input = np.zeros((ymaxlen, n_batch), dtype='int32')
     dec_output = np.zeros((ymaxlen, n_batch), dtype='int32')
     enc_mask = np.zeros((xmaxlen, n_batch), dtype=theano.config.floatX)
-    dec_imask = np.zeros((ymaxlen, n_batch), dtype=theano.config.floatX)
-    dec_omask = np.zeros((ymaxlen, n_batch), dtype=theano.config.floatX)
+    dec_mask = np.zeros((ymaxlen, n_batch), dtype=theano.config.floatX)
 
-    for idx,(sx,sy) in enumerate(zip(seqs_x,seqs_y)):
-        dec_input[:lengths_x[idx],idx]=sx
-        enc_mask[:lengths_x[idx],idx]=1.
-        dec_input[:lengths_y[idx],idx]=sy[:-1]
-        dec_imask[:lengths_y[idx],idx]=1.
-        dec_input[:lengths_y[idx], idx] = sy[1:]
-        dec_imask[:lengths_y[idx], idx] = 1.
-    input_list=[enc_input,enc_mask,dec_input,dec_imask,dec_imask,dec_output,dec_omask]
+    for idx, (sx, sy) in enumerate(zip(seqs_x, seqs_y)):
+        enc_input[:lengths_x[idx], idx] = sx
+        enc_mask[:lengths_x[idx], idx] = 1.
+        dec_input[:lengths_y[idx], idx] = sy[:-1]
+        dec_output[:lengths_y[idx], idx] = sy[1:]
+        dec_mask[:lengths_y[idx], idx] = 1.
+    input_list = [enc_input, enc_mask, dec_input, dec_output, dec_mask]
     return input_list
-
-
-
-

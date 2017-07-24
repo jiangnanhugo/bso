@@ -301,7 +301,7 @@ class BiGRU(object):
                 return x[:, :, n * dim: (n + 1) * dim]
             return x[:, n * dim:(n + 1) * dim]
 
-        def _recurrence(x_t, xx_t, m, h_tm1, U,Ux):
+        def _recurrence(x_t, xx_t, m, h_tm1, U, Ux):
             preact = x_t + T.dot(h_tm1, U)
             # reset fate
             r_t = T.nnet.sigmoid(split(preact, 0, self.n_hidden))
@@ -320,7 +320,7 @@ class BiGRU(object):
         state_belowx = T.dot(self.x, self.Wx) + self.bx
         h, _ = theano.scan(fn=_recurrence,
                            sequences=[state_below, state_belowx, self.mask],
-                           non_sequences=[self.U,self.Ux],
+                           non_sequences=[self.U, self.Ux],
                            outputs_info=state_pre,
                            truncate_gradient=-1)
 
@@ -329,7 +329,7 @@ class BiGRU(object):
         state_belowx = T.dot(self.x, self.Wxr) + self.bxr
         hr, _ = theano.scan(fn=_recurrence,
                             sequences=[state_below, state_belowx, self.mask],
-                            non_sequences=[self.Ur,self.Uxr],
+                            non_sequences=[self.Ur, self.Uxr],
                             go_backwards=True,
                             outputs_info=state_pre,
                             truncate_gradient=-1)

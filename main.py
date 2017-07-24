@@ -78,7 +78,7 @@ def train():
         for input_list in train_data:
             idx += 1
             input_list.append(lr)
-            cost, acc = model.train(input_list)
+            cost, acc = model.train(*input_list)
             batch_cost += cost
             batch_acc += acc
             if np.isnan(cost) or np.isinf(cost):
