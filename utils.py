@@ -52,9 +52,17 @@ def fopen(filepath, mode='r'):
         return gzip.open(filepath, mode)
     elif filepath.endswith('.hdf5'):
         return h5py.File(filepath, mode)
-    elif filepath.endswith('.hdf5'):
+    elif filepath.endswith('.pkl'):
         return pickle.load(open(filepath, 'r'))
-    return open(filepath, mode)
+    else:
+        vocab_dict={}
+        with open(filepath, mode)as f:
+            for line in f:
+                split_line=line.strip().split('\t')
+                if len(split_line)!=2: break
+                idx,word=split_line
+                vocab_dict[word]=int(idx)
+        return vocab_dict
 
 
 def ortho_weight(ndim):
@@ -74,7 +82,7 @@ def norm_weight(nin, nout=None, scale=0.01, ortho=True):
 
 class TextIterator(object):
     def __init__(self, train_file, vocab_file, n_batch, maxlen=None):
-        self.train_data = fopen(train_file)
+        self.train_data = open(train_file,'r')
         self.maxlen = maxlen
         self.n_batch = n_batch
         self.envocab = fopen(vocab_file[0])
@@ -86,6 +94,10 @@ class TextIterator(object):
 
     def reset(self):
         self.train_data.seek(0)
+
+    def goto_line(self,line_num):
+        for _ in range(line_num):
+            self.train_data.readline()
 
     def next(self):
         if self.end_of_data:
@@ -114,8 +126,8 @@ class TextIterator(object):
                         t = t[:self.maxlen[1]]
                 except IndexError:
                     break
-                s = [self.envocab[w] if w in self.envocab else self.envocab['unk'] for w in s]
-                t = [self.devocab[w] if w in self.devocab else self.devocab['unk'] for w in t]
+                s = [self.envocab[w] if w in self.envocab else self.envocab['<UNK>'] for w in s]
+                t = [self.devocab[w] if w in self.devocab else self.devocab['<UNK>'] for w in t]
 
                 source.append(s)
                 target.append(t)
@@ -136,7 +148,7 @@ class TextIterator(object):
             self.reset()
             raise StopIteration
 
-        return source, target
+        return prepare_data(source, target)
 
 
 class BiTextIterator(object):
@@ -225,7 +237,8 @@ def prepare_data(seqs_x, seqs_y):
         dec_imask[:lengths_y[idx],idx]=1.
         dec_input[:lengths_y[idx], idx] = sy[1:]
         dec_imask[:lengths_y[idx], idx] = 1.
-    return enc_input,enc_mask,dec_input,dec_imask,dec_imask,dec_output,dec_omask
+    input_list=[enc_input,enc_mask,dec_input,dec_imask,dec_imask,dec_output,dec_omask]
+    return input_list
 
 
 

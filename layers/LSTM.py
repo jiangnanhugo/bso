@@ -86,7 +86,7 @@ class CondLSTM(object):
     """
 
     def __init__(self, rng, n_input, n_hidden,
-                 x, mask, init_state=None,context=None,context_mask=None,
+                 x, mask, init_state=None, context=None, context_mask=None,
                  is_train=1, dropout=0.5, **kwargs):
         assert context, "Context must be provided"
         self.rng = rng
@@ -98,8 +98,8 @@ class CondLSTM(object):
         self.mask = mask
 
         self.init_state = init_state
-        self.context=context
-        self.context_mask=context_mask
+        self.context = context
+        self.context_mask = context_mask
 
         self.is_train = is_train
         self.dropout = dropout
@@ -124,11 +124,11 @@ class CondLSTM(object):
         self.build()
 
     def build(self):
-        if self.init_state==None:
-            self.init_state=T.zeros((self.x.shape[-1],self.n_hidden),dtype=theano.config.floatX)
+        if self.init_state == None:
+            self.init_state = T.zeros((self.x.shape[-1], self.n_hidden), dtype=theano.config.floatX)
 
         # projected context
-        assert self.context.ndim==3,\
+        assert self.context.ndim == 3, \
             "Context must be 3-D: # annotation x #sample x dim"
 
         # projected x
@@ -136,24 +136,23 @@ class CondLSTM(object):
 
         def split(x, n, dim):
             if x.ndim == 3:
-                return x[:,:,n*dim:(n+1)*dim]
+                return x[:, :, n * dim:(n + 1) * dim]
             return x[:, n * dim:(n + 1) * dim]
 
-        def align(h_t,h_s,We,Wh,b,sim='dot'):
-            if sim=='dot':
-                score=T.dot(h_t,h_s)
-            elif sim=='general':
-                score= T.tanh(T.dot(h_s, We) + T.dot(h_t, Wh) + b)
-            elif sim=='concat':
-                score=0
+        def align(h_t, h_s, We, Wh, b, sim='dot'):
+            if sim == 'dot':
+                score = T.dot(h_t, h_s)
+            elif sim == 'general':
+                score = T.tanh(T.dot(h_s, We) + T.dot(h_t, Wh) + b)
+            elif sim == 'concat':
+                score = 0
             else:
                 raise Exception("Similarity function must be dot or general or concat.")
 
-            shape=score.shape
-            score=score.reshape((-1,shape[-1]))
-            ctx_t=h_s*T.nnet.softmax(score)
+            shape = score.shape
+            score = score.reshape((-1, shape[-1]))
+            ctx_t = h_s * T.nnet.softmax(score)
             return ctx_t
-
 
         def _recurrence(x_t, m, h_tm1, c_tm1):
             p = x_t + T.dot(h_tm1, self.U)
@@ -173,7 +172,6 @@ class CondLSTM(object):
             h_t = h_t * m[:, None]
 
             return [h_t, c_t]
-
 
         if self.init_state == None:
             self.init_state = [dict(initial=T.zeros((self.x.shape[-1], self.n_hidden))),
@@ -295,7 +293,7 @@ class BiLSTM(object):
         else:
             raise Exception("output mode is neither sum or concat")
 
-        self.context=T.concatenate([hf, hr], axis=-1)
+        self.context = T.concatenate([hf, hr], axis=-1)
 
         if self.dropout > 0:
             drop_mask = self.rng.binomial(n=1, p=1 - self.dropout, size=output.shape, dtype=theano.config.floatX)

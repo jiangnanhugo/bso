@@ -20,9 +20,9 @@ def norm_weight(nin, nout=None, scale=0.01, ortho=True, name=None):
     else:
         W = scale * np.random.randn(nin, nout)
     init_w = W.astype(theano.config.floatX)
-    return theano.shared(init_w, name=name)
+    return theano.shared(init_w, name=name, borrow=True)
 
 
 def zero_bias(nin, name):
     init_b = np.zeros(nin, dtype=theano.config.floatX)
-    return theano.shared(init_b, name=name)
+    return theano.shared(init_b, name=name, borrow=True)
