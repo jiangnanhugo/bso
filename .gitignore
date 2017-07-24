@@ -1,0 +1,11 @@
+*.pkl
+*.pyc
+*.__init__.py
+build/*
+dist/*
+.idea/*
+idx*
+*txt
+*egg-info*
+*tokens
+data/*
