@@ -50,25 +50,30 @@ class Seq2Seq(object):
 
     def build_graph(self):
         logger.debug('build rnn cell....')
-        enc_shape=self.enc.shape
+        enc_shape = self.enc.shape
         embd_enc = self.en_loopup_table[self.enc.flatten()]
-        embd_enc=embd_enc.reshape((enc_shape[0],enc_shape[1],-1))
-        dec_shape=self.dec_input.shape
+        embd_enc = embd_enc.reshape([enc_shape[0], enc_shape[1], -1])
+        emc_input = self.en_loopup_table[self.enc, :]
+        dec_shape = self.dec_input.shape
         embd_dec_input = self.de_loopup_table[self.dec_input.flatten()]
-        embd_dec_input=embd_dec_input.reshape((dec_shape[0],dec_shape[1],-1))
+        embd_dec_input = embd_dec_input.reshape([dec_shape[0], dec_shape[1], -1])
 
         # encoder: bidrection RNN
         # word embedding for forward rnn (source)
         logger.debug('calculating bidirectional encoder.....')
         encoder = None
         if self.en_cell == 'bilstm':
-            encoder = BiLSTM(self.rng, self.envocab_size, self.n_hidden,
+            encoder = BiLSTM(self.rng, self.n_hidden, self.n_hidden,
                              embd_enc, self.enc_mask,
                              output_mode='sum', is_train=self.is_train, dropout=self.dropout)
         elif self.en_cell == 'bigru':
-            encoder = BiGRU(self.rng, self.envocab_size, self.n_hidden,
+            encoder = BiGRU(self.rng, self.n_hidden, self.n_hidden,
                             embd_enc, self.enc_mask,
-                            output_mode='sum', is_train=self.is_train, dropout=self.dropout)
+                            is_train=self.is_train, dropout=self.dropout)
+        elif self.en_cell == 'gru':
+            encoder = GRU(self.rng, self.n_hidden, self.n_hidden,
+                          embd_enc, self.enc_mask,
+                          is_train=self.is_train, dropout=self.dropout)
         elif self.en_cell.startswith('rnnblock'):
             mode = self.en_cell.split('.')[-1]
             print mode
@@ -83,16 +88,16 @@ class Seq2Seq(object):
         decoder = None
         if self.de_cell == 'attlstm':
             decoder = CondLSTM(self.rng,
-                               self.devocab_size, self.n_hidden,
+                               self.n_hidden, self.n_hidden,
                                embd_dec_input, self.dec_mask,
                                init_state=init_state, context=ctx, context_mask=self.enc_mask,
                                is_train=self.is_train, dropout=self.dropout)
         elif self.de_cell == 'attgru':
             decoder = AttGRU(self.rng,
-                             self.devocab_size, self.n_hidden,
+                             self.n_hidden, self.n_hidden,
                              embd_dec_input, self.dec_mask,
                              init_state=init_state, context=ctx, context_mask=self.enc_mask,
-                             is_train=self.is_train, dropout=self.dropout)
+                             is_train=self.is_train, dropout=self.dropout, dimctx=self.n_hidden)
 
         # hidden states of the decoder gru
         hidden_states = decoder.hidden_states
@@ -101,14 +106,19 @@ class Seq2Seq(object):
         # weights (alignment matrix)
         # alignment_matries = decoder.activation[2]
 
-        output_layer = comb_softmax(self.n_hidden, self.devocab_size, hidden_states, contexts)
+        # output_layer = comb_softmax(self.n_hidden, self.devocab_size, hidden_states, contexts,dimctx=self.n_hidden*2)
+        output_layer = softmax(self.n_hidden, self.devocab_size, hidden_states)
 
         cost, acc = self.categorical_crossentropy(output_layer, self.dec_output, self.dec_mask)
         self.params = [self.en_loopup_table, self.de_loopup_table]
         self.params += encoder.params
         self.params += decoder.params
 
+        self.debug = theano.function(inputs=[self.enc, self.enc_mask,self.dec_input, self.dec_mask],
+                                     outputs=[ctx, init_state,decoder.hidden_states])
+
         logger.debug('calculating gradient update')
+
         lr = T.scalar('lr')
         gparams = [T.clip(T.grad(cost, p), - 3., 3.) for p in self.params]
         updates = None
@@ -123,8 +133,8 @@ class Seq2Seq(object):
         self.train = theano.function(inputs=[self.enc, self.enc_mask,
                                              self.dec_input, self.dec_output, self.dec_mask, lr],
                                      outputs=[cost, acc],
-                                     updates=updates,
-                                     givens={self.is_train: np.cast['int32'](1)})
+                                     updates=updates)
+                                     #givens={self.is_train: np.cast['int32'](1)})
 
     def categorical_crossentropy(self, output, y_true, y_mask):
         y_prob = output.activation.flatten()

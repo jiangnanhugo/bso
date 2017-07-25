@@ -240,4 +240,6 @@ def prepare_data(seqs_x, seqs_y):
         dec_output[:lengths_y[idx], idx] = sy[1:]
         dec_mask[:lengths_y[idx], idx] = 1.
     input_list = [enc_input, enc_mask, dec_input, dec_output, dec_mask]
+    print enc_input.shape
+    print enc_mask.shape
     return input_list

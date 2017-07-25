@@ -3,22 +3,24 @@ import numpy as np
 import theano.tensor as T
 from theano.gpuarray import dnn
 from theano.gpuarray.type import gpuarray_shared_constructor
-
+from utils import *
 
 
 
 class RnnBlock(object):
     def __init__(self,rng,n_hidden,x,
-                 xmask,is_train,dropout,mode='lstm',
+                 xmask,is_train,dropout,mode='gru',
                  n_layer=1, pre_state=None,**kwargs):
+
+        prefix = "BiGRU_"
+        Wc = norm_weight(n_hidden * 2, n_hidden, name=prefix + 'Wc')
+        bc = zero_bias(n_hidden, prefix + 'bc')
 
         self.is_train=is_train
         self.dropout=dropout
 
         self.rng=rng
         self.xmask=xmask
-
-
 
         if pre_state==None:
             h0 = T.zeros((n_layer, x.shape[1], n_hidden), dtype=theano.config.floatX)
@@ -33,7 +35,7 @@ class RnnBlock(object):
                           num_layers=n_layer,
                           rnn_mode=mode,
                           input_mode='skip',
-                          direction_mode='unidirectional')
+                          direction_mode='bidirectional')
         psize=rnnb.get_param_size([1,n_hidden])
         print psize
         params_cudnn = gpuarray_shared_constructor(
@@ -50,6 +52,11 @@ class RnnBlock(object):
             h=rnnb.apply(params_cudnn,x,pre_state[0])[0]
 
         h=h*self.xmask.dimshuffle(0,1,'x')
+        self.context=h
+
+        ctx_mean = (h * self.xmask[:, :, None]).sum(0) / self.xmask.sum(0)[:, None]
+
+        self.activation = T.tanh(T.dot(ctx_mean, Wc) + bc)
 
         # Dropout
         if self.dropout > 0:

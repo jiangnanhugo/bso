@@ -26,9 +26,11 @@ class softmax(object):
 
 
 class comb_softmax(object):
-    def __init__(self, n_input, n_output, x, z):
+    def __init__(self, n_input, n_output, x, z,dimctx=None):
         self.n_input = n_input
         self.n_output = n_output
+        if dimctx==None:
+            dimctx=self.n_input
 
         self.x = x.reshape([-1, x.shape[-1]])
         self.z = z.reshape([-1, z.shape[-1]])

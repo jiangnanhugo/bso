@@ -14,7 +14,7 @@
   "n_hidden": 300,
   "learning_rate": 0.001,
   "rnn_cells": [
-    "bigru",
+    "gru2",
     "attgru"
   ]
 }
