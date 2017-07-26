@@ -77,8 +77,12 @@ def train():
         batch_acc = 0
         for input_list in train_data:
             idx += 1
-            a,b,c =model.debug(input_list[0],input_list[1],input_list[2],input_list[4])
-            print a.shape,b.shape,c.shape
+            a,b =model.debug(input_list[0],input_list[1])
+            print a.shape, b.shape
+            c = model.debug1(input_list[0], input_list[1], input_list[2], input_list[4])
+            print c.shape
+            d = model.debug2(input_list[0], input_list[1], input_list[2], input_list[4])
+            print d.shape
             input_list.append(lr)
             cost, acc = model.train(*input_list)
             batch_cost += cost

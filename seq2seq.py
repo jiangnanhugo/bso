@@ -53,7 +53,7 @@ class Seq2Seq(object):
         enc_shape = self.enc.shape
         embd_enc = self.en_loopup_table[self.enc.flatten()]
         embd_enc = embd_enc.reshape([enc_shape[0], enc_shape[1], -1])
-        emc_input = self.en_loopup_table[self.enc, :]
+
         dec_shape = self.dec_input.shape
         embd_dec_input = self.de_loopup_table[self.dec_input.flatten()]
         embd_dec_input = embd_dec_input.reshape([dec_shape[0], dec_shape[1], -1])
@@ -97,7 +97,7 @@ class Seq2Seq(object):
                              self.n_hidden, self.n_hidden,
                              embd_dec_input, self.dec_mask,
                              init_state=init_state, context=ctx, context_mask=self.enc_mask,
-                             is_train=self.is_train, dropout=self.dropout, dimctx=self.n_hidden)
+                             is_train=self.is_train, dropout=self.dropout, dimctx=self.n_hidden*2)
 
         # hidden states of the decoder gru
         hidden_states = decoder.hidden_states
@@ -114,8 +114,12 @@ class Seq2Seq(object):
         self.params += encoder.params
         self.params += decoder.params
 
-        self.debug = theano.function(inputs=[self.enc, self.enc_mask,self.dec_input, self.dec_mask],
-                                     outputs=[ctx, init_state,decoder.hidden_states])
+        self.debug = theano.function(inputs=[self.enc, self.enc_mask],
+                                     outputs=[ctx, init_state])
+        self.debug1 = theano.function(inputs=[self.enc, self.enc_mask, self.dec_input, self.dec_mask],
+                                     outputs=decoder.hidden_states)
+        self.debug2 = theano.function(inputs=[self.enc, self.enc_mask, self.dec_input, self.dec_mask],
+                                      outputs=contexts)
 
         logger.debug('calculating gradient update')
 

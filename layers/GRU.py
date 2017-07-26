@@ -173,37 +173,55 @@ class AttGRU(object):
             return x[:, n * dim:(n + 1) * dim]
 
         def _recurrence(x_t, xx_t, m,
-                        h_tm1, ctx_,  # alpha_t
+                        h_, ctx_,
                         pctx_, cc_):
-            preact1 = T.nnet.sigmoid(x_t + T.dot(h_tm1, self.U))
+            # pctx: 27 20 600
+            # cc_ 27 20 600
+            preact1 = T.nnet.sigmoid(x_t + T.dot(h_, self.U))
 
             r1 = split(preact1, 0, self.n_hidden)
             u1 = split(preact1, 1, self.n_hidden)
-            c_t = T.tanh(T.dot(h_tm1, self.Ux) * r1 + xx_t)
-            h1 = u1 * h_tm1 + (1. - u1) * c_t
-            h1 = h1 * m[:, None] + (1. - m)[:, None] * h1
+            h1 = T.tanh(T.dot(h_, self.Ux) * r1 + xx_t)
+            h1 = u1 * h_ + (1. - u1) * h1
+            h1 = m[:, None] * h1 + (1. - m)[:, None] * h_
 
             # attention
-            '''
-            pctx_: seqlen, batch_size, dimctx
-            '''
-            alpha = T.dot(T.tanh(T.dot(h1, self.W_comb_att)[None, :, :] + pctx_), self.U_att) + self.c_tt
-            alpha = alpha.reshape([alpha.shape[0], -1])    # seqlen, batch_size
+
+            #pstate_: 20 600
+            pstate_=T.dot(h1,self.W_comb_att)
+            pctx__ = pctx_ + pstate_[None, :, :]
+            pctx__ = T.tanh(pctx__)
+            # pctx__: 27 20 600
+            #alpha: 27 20 1
+            alpha = T.dot(pctx__ , self.U_att) + self.c_tt
+            alpha = alpha.reshape([alpha.shape[0], alpha.shape[1]])
+            # alpha 27 20
             alpha = T.exp(alpha)
-            if self.context_mask:
-                alpha = alpha * self.context_mask
+            #if self.context_mask:
+            alpha = alpha * self.context_mask
             alpha = alpha / alpha.sum(0, keepdims=True)
-            ctx_ = (cc_ * alpha[:, :, None]).sum(0)  # batch_size, dimctx
+            # alpha 27 20
+            ctx_ = T.sum(cc_ * alpha[:, :, None], axis=0) # batch_size, dimctx
+            # ctx_ 20 600
 
             # another gru cell
-            preact2 = T.nnet.sigmoid(T.dot(h1, self.U_nl) + T.dot(ctx_, self.Wc) + self.b_nl)
+            # ctx_:[batch_size,dimctx],
+            # h1: [batch_size, hidden_size]
+            #preact2 = T.nnet.sigmoid(T.dot(h1, self.U_nl) + T.dot(ctx_, self.Wc) + self.b_nl)
+            preact2 = T.dot(h1, self.U_nl) + self.b_nl
+            preact2 += T.dot(ctx_, self.Wc)
+            preact2 = T.nnet.sigmoid(preact2)
 
             r2 = split(preact2, 0, self.n_hidden)
             u2 = split(preact2, 1, self.n_hidden)
-            c_t2 = T.tanh((T.dot(h1, self.Ux_nl) + self.bx_nl) * r2 + T.dot(ctx_, self.Wcx))
-            h_t2 = u2 * h1 + (1. - u2) * c_t2
-            h_t2 = h_t2 * m[:, None] + (1. - m)[:, None] * h1
-            return h_t2, ctx_,  # alpha.T
+            # _t2 = T.tanh((T.dot(h1, self.Ux_nl) + self.bx_nl) * r2 + T.dot(ctx_, self.Wcx))
+            preactx2 = T.dot(h1, self.Ux_nl) + self.bx_nl
+            preactx2 *= r2
+            preactx2 += T.dot(ctx_, self.Wcx)
+            h2 = T.tanh(preactx2)
+            h2 = u2 * h1 + (1. - u2) * h2
+            h2 =  m[:, None] *h2 + (1. - m)[:, None] * h1
+            return h2, ctx_
 
         if self.init_state == None:
             self.init_state = T.zeros((self.x.shape[1], self.n_hidden), dtype=theano.config.floatX)
@@ -211,13 +229,18 @@ class AttGRU(object):
         # projected x
         state_below = T.dot(self.x, self.W) + self.b
         state_belowx = T.dot(self.x, self.Wx) + self.bx
+
+        # pctx_:[seqlen,batch_size,dimctx]
+        # self.context:[seqlen,batch_size,dimctx]:
+        # self.context:[27,20,600] -- >
+        # pctx: [27,20,600]
         pctx_ = T.dot(self.context, self.Wc_att) + self.b_att
 
         [hidden_states, contexts], _ = theano.scan(fn=_recurrence,
                                                    sequences=[state_below, state_belowx, self.mask],
                                                    non_sequences=[pctx_, self.context],
                                                    outputs_info=[self.init_state,
-                                                                 T.alloc(0., self.context.shape[0],
+                                                                 T.alloc(0., self.context.shape[1],
                                                                          self.context.shape[2])])
         self.hidden_states=hidden_states
         self.contexts=contexts
