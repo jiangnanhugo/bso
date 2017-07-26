@@ -115,17 +115,6 @@ class Seq2Seq(object):
         self.params += encoder.params
         self.params += decoder.params
 
-        self.debug = theano.function(inputs=[self.enc, self.enc_mask],
-                                     outputs=[ctx, init_state])
-        self.debug1 = theano.function(inputs=[self.enc, self.enc_mask, self.dec_input, self.dec_mask],
-                                     outputs=decoder.hidden_states)
-        self.debug2 = theano.function(inputs=[self.enc, self.enc_mask, self.dec_input, self.dec_mask],
-                                      outputs=contexts)
-        self.debug3 = theano.function(inputs=[self.enc, self.enc_mask, self.dec_input, self.dec_mask],
-                                      outputs=[output_layer.activation,output_layer.predict])
-        self.debug4 = theano.function(inputs=[self.enc, self.enc_mask, self.dec_input, self.dec_output, self.dec_mask],
-                                      outputs=[cost,acc])
-
         logger.debug('calculating gradient update')
 
         lr = T.scalar('lr')

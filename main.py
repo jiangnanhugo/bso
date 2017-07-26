@@ -77,16 +77,6 @@ def train():
         batch_acc = 0
         for input_list in train_data:
             idx += 1
-            a,b =model.debug(input_list[0],input_list[1])
-            print a.shape, b.shape
-            c = model.debug1(input_list[0], input_list[1], input_list[2], input_list[4])
-            print 'decoder hidden state',c.shape
-            d = model.debug2(input_list[0], input_list[1], input_list[2], input_list[4])
-            print 'attention context',d.shape
-            e ,f= model.debug3(input_list[0], input_list[1], input_list[2], input_list[4])
-            print 'softmax',e.shape,' argmax:',f.shape
-            g,h = model.debug4(input_list[0], input_list[1], input_list[2], input_list[3],input_list[4])
-            print 'cost', g.shape, ' acc:', h.shape
             input_list.append(lr)
             cost, acc = model.train(*input_list)
             batch_cost += cost
