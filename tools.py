@@ -28,8 +28,6 @@ def collect_data(filepath):
 
 
 
-
-
 def pmi_keywords(filepath):
     with open('_Fdist.pkl', 'r')as f:
         _Fdist=pickle.load(f)

@@ -36,7 +36,7 @@ class comb_softmax(object):
         self.z = z.reshape([-1, z.shape[-1]])
 
         self.W = norm_weight(n_input, n_output, name='output_W')
-        self.U = norm_weight(n_input, n_output, name='output_U')
+        self.U = norm_weight(dimctx, n_output, name='output_U')
         self.b = zero_bias(n_output, name='output_b')
 
         self.params = [self.W, self.b]
