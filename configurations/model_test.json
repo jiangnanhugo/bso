@@ -1,0 +1,23 @@
+{
+  "train_file": "./data/s2s_v3/s2s_v3_klrf/train.coarse.txt",
+  "test_file": "./data/s2s_v3/s2s_v3_klrf/valid.coarse.txt",
+  "vocab_file": [
+    "data/vocab_v3/vocab_v3_klrf/s2s.model.vocab.enc.coarse.txt",
+    "data/vocab_v3/vocab_v3_klrf/s2s.model.vocab.dec.coarse.txt"
+  ],
+  "checkpoint": "./model/epoch_7_time_434762.64.pkl",
+  "maxlen": [
+    30,
+    50
+  ],
+  "n_input": 512,
+  "n_hidden": 512,
+  "batch_size": 100,
+  "learning_rate": 0.01,
+  "rnn_cells": [
+    "bigru",
+    "attgru"
+  ],
+  "beam": 20,
+  "mode": "testing"
+}
