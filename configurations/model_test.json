@@ -5,7 +5,7 @@
     "data/vocab_v3/vocab_v3_klrf/s2s.model.vocab.enc.coarse.txt",
     "data/vocab_v3/vocab_v3_klrf/s2s.model.vocab.dec.coarse.txt"
   ],
-  "checkpoint": "./model/epoch_7_time_434762.64.pkl",
+  "checkpoint": "./model/epoch_8_time_489270.98.pkl",
   "maxlen": [
     30,
     50

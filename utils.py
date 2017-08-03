@@ -91,6 +91,8 @@ class TextIterator(object):
         self.n_batch = n_batch
         self.envocab = fopen(vocab_file[0])
         self.devocab = fopen(vocab_file[1])
+        self.deidx2vocab=dict((v,k) for k,v in self.devocab.iteritems())
+        self.enidx2vocab = dict((v, k) for k, v in self.envocab.iteritems())
         self.end_of_data = False
 
     def __iter__(self):

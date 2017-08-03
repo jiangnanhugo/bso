@@ -11,7 +11,7 @@ logger = logging.getLogger()
 from argparse import ArgumentParser
 
 argument = ArgumentParser(usage='it is usage tip', description='no')
-argument.add_argument('--cfgfile', default='./configurations/extended.json', type=str, help='model config')
+argument.add_argument('--cfgfile', default='./configurations/model_test.json', type=str, help='model config')
 argument.add_argument('--basic_cfgfile', default='./configurations/basic.json', type=str, help='basic model config')
 
 arguments = argument.parse_args()
@@ -82,9 +82,11 @@ def train():
 
 
 def test():
-    test_data = TextIterator(test_datafile, vocab_file, n_batch, maxlen)
+    test_data = TextIterator(test_datafile, vocab_file, n_batch=1, maxlen=maxlen)
     envocab_size = len(test_data.envocab)
     devocab_size = len(test_data.devocab)
+    deidx2vocab=test_data.deidx2vocab
+    enidx2vocab=test_data.enidx2vocab
     model = Seq2Seq(envocab_size, devocab_size, n_hidden, rnn_cells, optimizer, dropout,one_step=True)
     if os.path.isfile(checkpoint):
         print 'loading pretrained model:', checkpoint
@@ -102,15 +104,17 @@ def test():
 
         hyp_samples = [[]] * live_k
         hyp_scores = np.zeros(live_k, dtype=theano.config.floatX)
-
+        next_w = -1 * np.ones((1,), dtype='int32')
         next_state, ctx0 = model.encoder_state(input_list[0],input_list[1])
-        ctx = np.tile(ctx0, [live_k, 1])
-        next_w = -1 * np.ones((1,), dtype=theano.config.floatX)
-
+        print input_list[0]
+        for w in input_list[0]:
+            print enidx2vocab[w],
+        print
         for i in range(length):
-            next_prob, next_state = model.test([next_w, ctx, next_state])
+            ctx = np.tile(ctx0, [live_k, 1])
+            next_p,next_state=model.predict(next_w,ctx,next_state)
 
-            cand_scores = hyp_scores[:, None] - np.log(next_prob)
+            cand_scores = hyp_scores[:, None] - np.log(next_p)
             cand_flat = cand_scores.flatten()
             ranks_flat = cand_flat.argsort()[:(k - dead_k)]
 
@@ -145,13 +149,23 @@ def test():
             if new_live_k < 1 or dead_k >= k:
                 break
 
-            next_w = np.array([w[-1] for w in hyp_samples])
+            next_w = np.asarray([w[-1] for w in hyp_samples],dtype='int32')
             next_state = np.array(hyp_states)
+            #print 'next_w:',next_w
+            #for w in next_w:
+            #    print idx2vocab[w],
+            #print
+
 
         if live_k > 0:
             for idx in range(live_k):
                 sample.append(hyp_samples[idx])
                 sample_score.append(hyp_scores[idx])
+        print 'Beam search results:'
+        for sent in sample:
+            for w in sent:
+                print deidx2vocab[w],
+            print
 
 
 if __name__ == '__main__':

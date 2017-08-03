@@ -4,6 +4,7 @@ import theano.tensor as T
 from utils import *
 from softmax import *
 
+
 class GRU(object):
     def __init__(self, rng, n_input, n_hidden,
                  x, mask, init_state=None,
@@ -102,18 +103,15 @@ class AttGRU(object):
     def __init__(self, rng, n_input, n_hidden,
                  x, mask=None, init_state=None, context=None, context_mask=None,
                  is_train=1, dropout=0.5,
-                 one_step=False,dimctx=None):
+                 one_step=False, dimctx=None):
         assert context, "Context must be provided"
         if one_step:
-            assert init_state,'previous state must be provided.'
+            assert init_state, 'previous state must be provided.'
         # projected context
         assert context.ndim == 3, \
             'Context must be 3-d: [batch_size, timesteps, hidden_size*2]'
 
-
-
         prefix = "AttGRU_"
-
         # https://github.com/nyu-dl/dl4mt-tutorial/tree/master/session3
         self.rng = rng
 
@@ -127,7 +125,7 @@ class AttGRU(object):
         self.context = context
         self.context_mask = context_mask
         self.is_train = is_train
-        self.one_step=one_step
+        self.one_step = one_step
         self.dropout = dropout
 
         if dimctx is None:
@@ -167,7 +165,6 @@ class AttGRU(object):
                        self.U_nl, self.b_nl, self.Ux_nl, self.bx_nl,
                        self.Wc, self.Wcx, self.W_comb_att,
                        self.Wc_att, self.U_att, self.b_att, self.c_tt]
-
         self.build()
 
     def build(self):
@@ -180,30 +177,29 @@ class AttGRU(object):
         def _recurrence(x_t, xx_t, m,
                         h_, ctx_,
                         pctx_, cc_):
-            # pctx: 27 20 600
-            # cc_ 27 20 600
+            # x_t: [1, 600], preact1: [100, 600]
             preact1 = T.nnet.sigmoid(x_t + T.dot(h_, self.U))
 
             r1 = split(preact1, 0, self.n_hidden)
             u1 = split(preact1, 1, self.n_hidden)
+            # r1: [100,300], u1:[100,300]
             h1 = T.tanh(T.dot(h_, self.Ux) * r1 + xx_t)
             h1 = u1 * h_ + (1. - u1) * h1
             h1 = m[:, None] * h1 + (1. - m)[:, None] * h_
 
             # attention
-
-            # pstate_: 20 600
+            # pstate_: 100 600
             pstate_ = T.dot(h1, self.W_comb_att)
             pctx__ = pctx_ + pstate_[None, :, :]
             pctx__ = T.tanh(pctx__)
-            # pctx__: 27 20 600
-            # alpha: 27 20 1
+            # pctx__: 27 100 600
+            # alpha: 27 100 1
             alpha = T.dot(pctx__, self.U_att) + self.c_tt
             alpha = alpha.reshape([alpha.shape[0], alpha.shape[1]])
             # alpha 27 20
             alpha = T.exp(alpha)
-            # if self.context_mask:
-            alpha = alpha * self.context_mask
+            if self.context_mask:
+                alpha = alpha * self.context_mask
             alpha = alpha / alpha.sum(0, keepdims=True)
             # alpha 27 20
             ctx_ = T.sum(cc_ * alpha[:, :, None], axis=0)  # batch_size, dimctx
@@ -228,42 +224,46 @@ class AttGRU(object):
             h2 = m[:, None] * h2 + (1. - m)[:, None] * h1
             return h2, ctx_
 
-        if self.init_state == None:
-            self.init_state = T.zeros((self.x.shape[1], self.n_hidden), dtype=theano.config.floatX)
-
         # projected x
+        # state_below:[1,600] state_below:[1,600]
         state_below = T.dot(self.x, self.W) + self.b
         state_belowx = T.dot(self.x, self.Wx) + self.bx
+
+        # self.init_state: [100,300]
+        if self.init_state == None:
+            self.init_state = T.zeros((self.x.shape[1], self.n_hidden), dtype=theano.config.floatX)
         # mask
-        print self.mask
+        # self.mask: [1,1]
         if self.mask == None:
             self.mask = T.alloc(1., state_below.shape[0],1)
 
         # pctx_:[seqlen,batch_size,dimctx]
-        # self.context:[seqlen,batch_size,dimctx]:
         # self.context:[27,20,600]
         # pctx: [27,20,600]
         pctx_ = T.dot(self.context, self.Wc_att) + self.b_att
-        seqs=[state_below, state_belowx, self.mask]
-        if self.one_step==True:
-            hidden_states,contexts=_recurrence(*(seqs+[self.init_state,None,pctx_,self.context]))
+        seqs = [state_below, state_belowx, self.mask]
+        if self.one_step == True:
+            seqs+=[self.init_state,None,pctx_,self.context]
+            hidden_states,contexts = _recurrence(*seqs)
         else:
             [hidden_states, contexts], _ = theano.scan(fn=_recurrence,
-                                                   sequences=seqs,
-                                                   non_sequences=[pctx_, self.context],
-                                                   outputs_info=[self.init_state,
-                                                                 T.alloc(0., self.context.shape[1],
-                                                                         self.context.shape[2])])
+                                                       sequences=seqs,
+                                                       non_sequences=[pctx_, self.context],
+                                                       outputs_info=[self.init_state,
+                                                                     T.alloc(0., self.context.shape[1],
+                                                                             self.context.shape[2])])
         self.hidden_states = hidden_states
         self.contexts = contexts
 
+
         # Dropout
+
         if self.dropout > 0:
             drop_mask = self.rng.binomial(n=1, p=1 - self.dropout, size=hidden_states.shape, dtype=theano.config.floatX)
             self.hidden_states = T.switch(self.is_train, hidden_states * drop_mask, hidden_states * (1 - self.dropout))
         else:
             self.activation = T.switch(self.is_train, hidden_states, hidden_states)
-        # Dropout
+        
         if self.dropout > 0:
             drop_mask = self.rng.binomial(n=1, p=1 - self.dropout, size=contexts.shape,
                                           dtype=theano.config.floatX)
@@ -271,7 +271,6 @@ class AttGRU(object):
                                      contexts * (1 - self.dropout))
         else:
             self.contexts = T.switch(self.is_train, contexts, contexts)
-
 
 
 class BiGRU(object):

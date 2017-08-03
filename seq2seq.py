@@ -116,7 +116,6 @@ class Seq2Seq(object):
         # output_layer = comb_softmax(self.n_hidden, self.devocab_size, hidden_states, contexts,dimctx=self.n_hidden*2)
         output_layer = softmax(self.n_hidden, self.devocab_size, hidden_states)
 
-
         cost, acc = self.categorical_crossentropy(output_layer, dec_output, dec_mask)
         self.params = [self.en_loopup_table, self.de_loopup_table]
         self.params += self.encoder.params
@@ -145,28 +144,36 @@ class Seq2Seq(object):
     def build_sample(self):
         logger.info("build sample.....")
         dec_input = T.ivector('decoder input')
-        embd_dec_input = self.de_loopup_table[dec_input]
-
+        # embd_dec_input = self.de_loopup_table[dec_input]
+        embd_dec_input = T.switch(dec_input[:, None] < 0,
+                                  T.alloc(0., 1, self.n_hidden),
+                                  self.de_loopup_table[dec_input])
         self.encoder_state = theano.function(inputs=[self.enc, self.enc_mask],
                                              outputs=[self.encoder.activation, self.encoder.context],
                                              name='encoder outputs')
 
         init_state = T.fmatrix('decoder init_state')
+        # batch_size, hidden_size
         decoder = AttGRU(self.rng,
                          self.n_hidden, self.n_hidden,
                          embd_dec_input, mask=None,
-                         init_state=init_state, context=self.encoder.context, context_mask=self.enc_mask,
-                         is_train=self.is_train, dropout=self.dropout,one_step=True, dimctx=self.n_hidden * 2)
+                         init_state=init_state, context=self.encoder.context, context_mask=None,  # self.enc_mask,
+                         is_train=self.is_train, dropout=self.dropout, one_step=True, dimctx=self.n_hidden * 2)
 
-        next_state = decoder.contexts
-        hidden_states = decoder.hidden_states
-        output_layer = softmax(self.n_hidden, self.devocab_size, hidden_states)
+
+        output_layer = softmax(self.n_hidden, self.devocab_size, decoder.hidden_states)
         next_prob = output_layer.activation
 
+        self.params = [self.en_loopup_table, self.de_loopup_table]
+        self.params += self.encoder.params
+        self.params += decoder.params
+        self.params += output_layer.params
+
         self.predict = theano.function(inputs=[dec_input, self.encoder.context, init_state],
-                                       outputs=[next_prob, next_state],
+                                       outputs=[next_prob,decoder.hidden_states],
                                        givens={self.is_train: np.cast['int32'](0)},
                                        name='next prob generator')
+
 
     def categorical_crossentropy(self, output, y_true, y_mask):
         y_prob = output.activation
