@@ -113,8 +113,8 @@ class Seq2Seq(object):
         # weights (alignment matrix)
         # alignment_matries = decoder.activation[2]
 
-        # output_layer = comb_softmax(self.n_hidden, self.devocab_size, hidden_states, contexts,dimctx=self.n_hidden*2)
-        output_layer = softmax(self.n_hidden, self.devocab_size, hidden_states)
+        output_layer = comb_softmax(self.n_hidden, self.devocab_size, hidden_states, contexts,dimctx=self.n_hidden*2)
+        #output_layer = softmax(self.n_hidden, self.devocab_size, hidden_states)
 
         cost, acc = self.categorical_crossentropy(output_layer, dec_output, dec_mask)
         self.params = [self.en_loopup_table, self.de_loopup_table]

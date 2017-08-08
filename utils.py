@@ -91,8 +91,8 @@ class TextIterator(object):
         self.n_batch = n_batch
         self.envocab = fopen(vocab_file[0])
         self.devocab = fopen(vocab_file[1])
-        self.deidx2vocab=dict((v,k) for k,v in self.devocab.iteritems())
         self.enidx2vocab = dict((v, k) for k, v in self.envocab.iteritems())
+        self.deidx2vocab=dict((v,k) for k,v in self.devocab.iteritems())
         self.end_of_data = False
 
     def __iter__(self):
@@ -124,6 +124,8 @@ class TextIterator(object):
                     splited_line = line.strip().split('#TAB#')
                     if len(splited_line) != 2: break
                     s, t = splited_line
+                    s+=" <EOS>"
+                    t="<START> "+t+" <EOS>"
                     s = s.split(' ')
                     t = t.split(' ')
                     if self.maxlen[0] > 0 and len(s) > self.maxlen[0]:

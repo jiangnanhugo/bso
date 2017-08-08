@@ -1,14 +1,14 @@
 {
   "train_file": "./data/s2s_v3/s2s_v3_klrf/train.coarse.txt",
-  "test_file": "./data/s2s_v3/s2s_v3_klrf/valid.coarse.txt",
+  "test_file": "./data/test/body.txt",
   "vocab_file": [
     "data/vocab_v3/vocab_v3_klrf/s2s.model.vocab.enc.coarse.txt",
     "data/vocab_v3/vocab_v3_klrf/s2s.model.vocab.dec.coarse.txt"
   ],
-  "checkpoint": "./model/epoch_8_time_489270.98.pkl",
+  "checkpoint": "model/epoch_10_time_598974.71.pkl",
   "maxlen": [
-    30,
-    50
+    50,
+    30
   ],
   "n_input": 512,
   "n_hidden": 512,

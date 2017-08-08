@@ -87,6 +87,7 @@ def test():
     devocab_size = len(test_data.devocab)
     deidx2vocab=test_data.deidx2vocab
     enidx2vocab=test_data.enidx2vocab
+    vocab2idx=test_data.devocab
     model = Seq2Seq(envocab_size, devocab_size, n_hidden, rnn_cells, optimizer, dropout,one_step=True)
     if os.path.isfile(checkpoint):
         print 'loading pretrained model:', checkpoint
@@ -104,10 +105,12 @@ def test():
 
         hyp_samples = [[]] * live_k
         hyp_scores = np.zeros(live_k, dtype=theano.config.floatX)
-        next_w = -1 * np.ones((1,), dtype='int32')
+
+        GO_ID=vocab2idx['<START>']
+        next_w =  np.asarray([GO_ID,], dtype='int32')
         next_state, ctx0 = model.encoder_state(input_list[0],input_list[1])
-        print input_list[0]
-        for w in input_list[0]:
+
+        for w in input_list[0].flatten():
             print enidx2vocab[w],
         print
         for i in range(length):
@@ -151,10 +154,6 @@ def test():
 
             next_w = np.asarray([w[-1] for w in hyp_samples],dtype='int32')
             next_state = np.array(hyp_states)
-            #print 'next_w:',next_w
-            #for w in next_w:
-            #    print idx2vocab[w],
-            #print
 
 
         if live_k > 0:
