@@ -11,7 +11,7 @@ logger = logging.getLogger()
 from argparse import ArgumentParser
 
 argument = ArgumentParser(usage='it is usage tip', description='no')
-argument.add_argument('--cfgfile', default='./configurations/model_test.json', type=str, help='model config')
+argument.add_argument('--cfgfile', default='./configurations/model.json', type=str, help='model config')
 argument.add_argument('--basic_cfgfile', default='./configurations/basic.json', type=str, help='basic model config')
 
 arguments = argument.parse_args()
@@ -27,6 +27,7 @@ goto_line = args['goto_line']
 n_batch = args['batch_size']
 rnn_cells = args['rnn_cells']  # list
 optimizer = args['optimizer']
+clip_freq = args['clip_freq']
 maxlen = args['maxlen']
 disp_freq = 100
 NEPOCH = args['epochs']
@@ -57,12 +58,14 @@ def train():
     logger.info('training start...')
     start = time.time()
     idx = goto_line
+    epsilon=0.25
     for epoch in xrange(NEPOCH):
         batch_cost = 0
         batch_acc = 0
         for input_list in train_data:
             idx += 1
             input_list.append(lr)
+            input_list.append(epsilon)
             cost, acc = model.train(*input_list)
             batch_cost += cost
             batch_acc += acc
@@ -74,6 +77,9 @@ def train():
                     'epoch: %d idx: %d cost: %f acc: %f' % (epoch, idx, batch_cost / disp_freq, batch_acc / disp_freq))
                 batch_cost = 0
                 batch_acc = 0
+            if idx % clip_freq ==0:
+                epsilon*=0.95
+                logger.info("Clip the epsilon of schedule sampling to: %f" %epsilon)
         logger.info('dumping with epoch %d' % epoch)
         prefix = './model/epoch_%d_time_%.2f.pkl' % (epoch, (time.time() - start))
         save_model(prefix, model)

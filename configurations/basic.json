@@ -22,5 +22,6 @@
     "bigru",
     "attgru"
   ],
-  "goto_line": 0
+  "goto_line": 0,
+  "beam":10
 }
