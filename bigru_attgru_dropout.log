@@ -1,0 +1,34 @@
+Using cuDNN version 5110 on context None
+Mapped name None to device cuda2: Tesla K40m (0000:2B:00.0)
+2017-07-27 15:03:53,016-INFO-loading dataset...
+2017-07-27 15:03:53,087-INFO-building model...
+2017-07-27 15:03:55,177-DEBUG-build rnn cell....
+2017-07-27 15:03:55,188-DEBUG-calculating bidirectional encoder.....
+2017-07-27 15:03:55,906-DEBUG-calculating decoder with attention model
+2017-07-27 15:03:59,171-DEBUG-calculating gradient update
+2017-07-27 15:04:33,160-DEBUG-compling final function......
+2017-07-27 15:06:49,829-INFO-training start...
+{u'rnn_cells': [u'bigru', u'attgru'], u'test_file': u'None', u'maxlen': [30, 50], u'vocab_file': [u'data/vocab_v3/vocab_v3_klrf/s2s.model.vocab.enc.coarse.txt', u'data/vocab_v3/vocab_v3_klrf/s2s.model.vocab.dec.coarse.txt'], u'train_file': u'./data/s2s_v3/s2s_v3_klrf/train.coarse.txt', u'learning_rate': 0.01, u'goto_line': 0, u'batch_size': 100, u'checkpoint': u'None', u'n_input': 512, u'mode': u'train', u'valid_file': u'./data/s2s_v3/s2s_v3_klrf/valid.coarse.txt', u'dropout': 0.1, u'optimizer': u'adam', u'epochs': 20, u'n_hidden': 512}
+Traceback (most recent call last):
+  File "main.py", line 118, in <module>
+    train()
+  File "main.py", line 81, in train
+    cost, acc = model.train(*input_list)
+  File "/home/t-najia/anaconda2/lib/python2.7/site-packages/theano/compile/function_module.py", line 898, in __call__
+    storage_map=getattr(self.fn, 'storage_map', None))
+  File "/home/t-najia/anaconda2/lib/python2.7/site-packages/theano/gof/link.py", line 325, in raise_with_op
+    reraise(exc_type, exc_value, exc_trace)
+  File "/home/t-najia/anaconda2/lib/python2.7/site-packages/theano/compile/function_module.py", line 884, in __call__
+    self.fn() if output_subset is None else\
+  File "pygpu/blas.pyx", line 44, in pygpu.blas.pygpu_blas_rgemm (pygpu/blas.c:2007)
+pygpu.gpuarray.GpuArrayException: ('Value invalid or out of range', 2)
+Apply node that caused the error: GpuGemm{inplace=True}(GpuDot22.0, TensorConstant{1.0}, GpuReshape{2}.0, output_U, TensorConstant{1.0})
+Toposort index: 700
+Inputs types: [GpuArrayType<None>(float32, (False, False)), TensorType(float64, scalar), GpuArrayType<None>(float32, (False, False)), GpuArrayType<None>(float32, (False, False)), TensorType(float64, scalar)]
+Inputs shapes: [(2900, 27859), (), (2900, 1024), (512, 27859), ()]
+Inputs strides: [(111436, 4), (), (4096, 4), (111436, 4), ()]
+Inputs values: ['not shown', array(1.0), 'not shown', 'not shown', array(1.0)]
+Outputs clients: [[GpuCrossentropySoftmaxArgmax1HotWithBias(GpuGemm{inplace=True}.0, output_b, GpuReshape{1}.0), GpuElemwise{add,no_inplace}(InplaceGpuDimShuffle{x,0}.0, GpuGemm{inplace=True}.0)]]
+
+HINT: Re-running with most Theano optimization disabled could give you a back-trace of when this node was created. This can be done with by setting the Theano flag 'optimizer=fast_compile'. If that does not work, Theano optimizations can be disabled with 'optimizer=None'.
+HINT: Use the Theano flag 'exception_verbosity=high' for a debugprint and storage map footprint of this apply node.

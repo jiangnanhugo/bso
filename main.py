@@ -77,9 +77,9 @@ def train():
                     'epoch: %d idx: %d cost: %f acc: %f' % (epoch, idx, batch_cost / disp_freq, batch_acc / disp_freq))
                 batch_cost = 0
                 batch_acc = 0
-            if idx % clip_freq ==0:
-                epsilon*=0.95
-                logger.info("Clip the epsilon of schedule sampling to: %f" %epsilon)
+            #if idx % clip_freq ==0:
+        epsilon*=0.9
+        logger.info("Clip the epsilon of schedule sampling to: %f" %epsilon)
         logger.info('dumping with epoch %d' % epoch)
         prefix = './model/epoch_%d_time_%.2f.pkl' % (epoch, (time.time() - start))
         save_model(prefix, model)

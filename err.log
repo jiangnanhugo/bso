@@ -1,0 +1,23 @@
+2017-07-26 23:51:01,679-INFO-loading dataset...
+2017-07-26 23:51:01,776-INFO-building model...
+2017-07-26 23:51:03,587-DEBUG-build rnn cell....
+2017-07-26 23:51:03,605-DEBUG-calculating bidirectional encoder.....
+2017-07-26 23:51:04,230-DEBUG-calculating decoder with attention model
+2017-07-26 23:51:35,808-DEBUG-calculating gradient update
+2017-07-26 23:52:26,182-DEBUG-compling final function......
+2017-07-26 23:53:36,313-INFO-training start...
+Traceback (most recent call last):
+  File "main.py", line 128, in <module>
+    train()
+  File "main.py", line 82, in train
+    c = model.debug1(input_list[0], input_list[1], input_list[2], input_list[4])
+  File "/home/t-najia/anaconda2/lib/python2.7/site-packages/theano/compile/function_module.py", line 884, in __call__
+    self.fn() if output_subset is None else\
+  File "/home/t-najia/anaconda2/lib/python2.7/site-packages/theano/scan_module/scan_op.py", line 989, in rval
+    r = p(n, [x[0] for x in i], o)
+  File "/home/t-najia/anaconda2/lib/python2.7/site-packages/theano/scan_module/scan_op.py", line 978, in p
+    self, node)
+  File "theano/scan_module/scan_perform.pyx", line 592, in theano.scan_module.scan_perform.perform (/home/t-najia/.theano/compiledir_Linux-4.4--generic-x86_64-with-debian-stretch-sid-x86_64-2.7.13-64/scan_perform/mod.cpp:7110)
+  File "/home/t-najia/anaconda2/lib/python2.7/site-packages/theano/tensor/type.py", line 551, in value_zeros
+    def value_zeros(self, shape):
+KeyboardInterrupt

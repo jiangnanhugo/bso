@@ -1,0 +1,27 @@
+{
+  "train_file": "None",
+  "valid_file": "None",
+  "test_file": "None",
+  "vocab_file":[
+    "None",
+    "None"],
+  "checkpoint": "None",
+  "batch_size": 20,
+  "optimizer": "adam",
+  "maxlen": [
+    30,
+    50
+  ],
+  "epochs": 20,
+  "dropout": 0.1,
+  "n_input": 300,
+  "n_hidden": 300,
+  "learning_rate": 0.001,
+  "mode": "train",
+  "rnn_cells": [
+    "bigru",
+    "attgru"
+  ],
+  "goto_line": 0,
+  "beam":10
+}
