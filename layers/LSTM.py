@@ -80,7 +80,7 @@ class LSTM(object):
             self.activation = T.switch(self.is_train, h, h)
 
 
-class AttLSTM(object):
+class CondLSTM(object):
     """
     Conditional LSTM with Attention implementatin.
     """

@@ -1,2 +1,3 @@
-# Beam Search Optimization
+## Beam Search Optimization
+## Scheduled Sampling
 

@@ -46,3 +46,4 @@ class comb_softmax(object):
         self.activation = T.nnet.softmax(logits)
         self.predict = T.argmax(self.activation, axis=-1)
         self.topk = T.argsort(self.activation, axis=-1)
+

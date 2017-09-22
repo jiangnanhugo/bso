@@ -266,3 +266,4 @@ class Seq2Seq(object):
         mask = y_mask.flatten()
         y_true = y_true.flatten()
         return sorted_y_pred[y_true] #* mask
+

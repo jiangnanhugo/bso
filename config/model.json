@@ -1,0 +1,22 @@
+{
+  "train_file": "./data/s2s_v3/s2s_v3_klrf/train.coarse.txt",
+  "valid_file": "./data/s2s_v3/s2s_v3_klrf/valid.coarse.txt",
+  "vocab_file":[
+    "data/vocab_v3/vocab_v3_klrf/s2s.model.vocab.enc.coarse.txt",
+    "data/vocab_v3/vocab_v3_klrf/s2s.model.vocab.dec.coarse.txt"
+  ],
+  "checkpoint": "None",
+  "maxlen": [
+    30,
+    50
+  ],
+  "n_input": 512,
+  "n_hidden": 512,
+  "batch_size": 100,
+  "learning_rate": 0.001,
+  "rnn_cells": [
+    "bigru",
+    "ssattgru"
+  ],
+  "clip_freq":2000
+}
