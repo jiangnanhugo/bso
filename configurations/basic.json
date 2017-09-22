@@ -23,5 +23,6 @@
     "attgru"
   ],
   "goto_line": 0,
-  "beam":10
+  "beam":10,
+  "clip_freq":2000
 }

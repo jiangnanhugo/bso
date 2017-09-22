@@ -25,7 +25,7 @@ logger.setLevel(logging.DEBUG)
 
 class Seq2Seq(object):
     def __init__(self, envocab_size, devocab_size, n_hidden, rnn_cells=None,
-                 optimizer='adam', dropout=0.1, one_step=False):
+                 optimizer='adam', dropout=0.1, one_step=0):
 
         self.enc = T.imatrix('encoder input')
         self.enc_mask = T.fmatrix('enc mask')
@@ -47,10 +47,12 @@ class Seq2Seq(object):
         self.srng = RandomStreams(1234)
         self.eps = 1e-8
         self.build_enc()
-        if self.one_step == False:
+        if self.one_step == 0:
             self.build_dec()
-        else:
+        elif self.one_step == 1:
             self.build_sample()
+        else:
+            self.build_topk()
 
     def build_enc(self):
         enc_shape = self.enc.shape
@@ -83,7 +85,7 @@ class Seq2Seq(object):
         dec_input = T.imatrix('decoder input')
         dec_output = T.imatrix('decoder output')
         dec_mask = T.fmatrix('decoder mask')
-        ss_prob=T.fscalar("schedule sampling probability")
+        ss_prob = T.fscalar("schedule sampling probability")
         logger.debug('build decoder rnn cell....')
 
         dec_shape = dec_input.shape
@@ -132,6 +134,7 @@ class Seq2Seq(object):
             self.params += output_layer.params
             # output_layer = softmax(self.n_hidden, self.devocab_size, hidden_states)
             cost, acc = self.categorical_crossentropy(output_layer, dec_output, dec_mask)
+            topk = self.calculate_topk(output_layer, dec_output, dec_mask)
 
         logger.debug('calculating gradient update')
 
@@ -146,13 +149,17 @@ class Seq2Seq(object):
             updates = rmsprop(self.params, gparams, lr)
 
         logger.debug('compling final function......')
-        input_list=[self.enc, self.enc_mask,dec_input, dec_output, dec_mask, lr]
-        if self.de_cell=='ssattgru':
+        input_list = [self.enc, self.enc_mask, dec_input, dec_output, dec_mask, lr]
+        if self.de_cell == 'ssattgru':
             input_list.append(ss_prob)
         self.train = theano.function(inputs=input_list,
                                      outputs=[cost, acc],
                                      updates=updates)
-                                     #givens={self.is_train: np.cast['int32'](1)})
+
+        self.topk = theano.function(inputs=[self.enc, self.enc_mask, dec_input, dec_output, dec_mask],
+                                    outputs=topk,
+                                    name='get the rank of ground truth word.')
+        # givens={self.is_train: np.cast['int32'](1)})
 
     def build_sample(self):
         logger.info("build sample.....")
@@ -186,6 +193,63 @@ class Seq2Seq(object):
                                        givens={self.is_train: np.cast['int32'](0)},
                                        name='next prob generator')
 
+    def build_topk(self):
+        logger.info("build TopK.....")
+        dec_input = T.imatrix('decoder input')
+        dec_output = T.imatrix('decoder output')
+        dec_mask = T.fmatrix('decoder mask')
+        ss_prob = T.fscalar("schedule sampling probability")
+        logger.debug('build decoder rnn cell....')
+
+        dec_shape = dec_input.shape
+        embd_dec_input = self.de_loopup_table[dec_input.flatten()]
+        embd_dec_input = embd_dec_input.reshape([dec_shape[0], dec_shape[1], -1])
+        # decoder init state
+        init_state = self.encoder.activation
+        ctx = self.encoder.context
+        logger.debug('calculating decoder with attention model')
+        decoder = None
+        if self.de_cell == 'attlstm':
+            decoder = AttLSTM(self.srng,
+                              self.n_hidden, self.n_hidden,
+                              embd_dec_input, dec_mask,
+                              init_state=init_state, context=ctx, context_mask=self.enc_mask,
+                              is_train=self.is_train, dropout=self.dropout)
+        elif self.de_cell == 'attgru':
+            decoder = AttGRU(self.srng,
+                             self.n_hidden, self.n_hidden,
+                             embd_dec_input, dec_mask,
+                             init_state=init_state, context=ctx, context_mask=self.enc_mask,
+                             is_train=self.is_train, dropout=self.dropout, dimctx=self.n_hidden * 2)
+        elif self.de_cell == 'ssattgru':
+            decoder = SSAttGRU(self.srng,
+                               self.n_hidden, self.n_hidden, self.devocab_size,
+                               dec_input, dec_mask, self.de_loopup_table,
+                               init_state=init_state, context=ctx, context_mask=self.enc_mask,
+                               is_train=self.is_train, dimctx=self.n_hidden * 2, ss_prob=ss_prob)
+
+        self.params = [self.en_loopup_table, self.de_loopup_table]
+        self.params += self.encoder.params
+        self.params += decoder.params
+
+        if self.de_cell == 'attgru':
+            # hidden states of the decoder gru
+            # target_seq_len, batch_size, hidden_size: (19, 20, 300)
+            hidden_states = decoder.hidden_states
+            # weighted averages of context, generated by attention module
+            contexts = decoder.contexts
+            # weights (alignment matrix)
+            # alignment_matries = decoder.activation[2]
+            output_layer = comb_softmax(self.n_hidden, self.devocab_size, hidden_states, contexts,
+                                        dimctx=self.n_hidden * 2)
+            topked = self.calculate_topk(output_layer, dec_output, dec_mask)
+
+        logger.debug('calculating gradient update')
+        self.topk = theano.function(inputs=[self.enc, self.enc_mask, dec_input, dec_output, dec_mask],
+                                    outputs=[output_layer.topk,dec_output,dec_mask],
+                                    givens={self.is_train: np.cast['int32'](1)},
+                                    name='get the rank of ground truth word.')
+
     def categorical_crossentropy(self, output, y_true, y_mask):
         y_prob = output.activation
         y_prob = y_prob.reshape((-1, y_prob.shape[-1]))
@@ -196,3 +260,9 @@ class Seq2Seq(object):
         batch_nll = T.sum(nll * mask)
         batch_acc = T.sum(T.eq(y_pred, y_true) * mask)
         return batch_nll / T.sum(mask), batch_acc / T.sum(mask)
+
+    def calculate_topk(self, output, y_true, y_mask):
+        sorted_y_pred = output.topk
+        mask = y_mask.flatten()
+        y_true = y_true.flatten()
+        return sorted_y_pred[y_true] #* mask

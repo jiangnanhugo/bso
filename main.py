@@ -4,6 +4,8 @@ from utils import *
 
 import logging
 from logging.config import fileConfig
+import numpy
+numpy.set_printoptions(threshold=numpy.nan)
 
 fileConfig('logging_config.ini')
 logger = logging.getLogger()
@@ -11,7 +13,7 @@ logger = logging.getLogger()
 from argparse import ArgumentParser
 
 argument = ArgumentParser(usage='it is usage tip', description='no')
-argument.add_argument('--cfgfile', default='./configurations/model.json', type=str, help='model config')
+argument.add_argument('--cfgfile', default='./configurations/model_topk.json', type=str, help='model config')
 argument.add_argument('--basic_cfgfile', default='./configurations/basic.json', type=str, help='basic model config')
 
 arguments = argument.parse_args()
@@ -77,9 +79,8 @@ def train():
                     'epoch: %d idx: %d cost: %f acc: %f' % (epoch, idx, batch_cost / disp_freq, batch_acc / disp_freq))
                 batch_cost = 0
                 batch_acc = 0
-            if idx % clip_freq ==0:
-                epsilon*=0.95
-                logger.info("Clip the epsilon of schedule sampling to: %f" %epsilon)
+        epsilon*=0.9
+        logger.info("Clip the epsilon of schedule sampling to: %f" %epsilon)
         logger.info('dumping with epoch %d' % epoch)
         prefix = './model/epoch_%d_time_%.2f.pkl' % (epoch, (time.time() - start))
         save_model(prefix, model)
@@ -94,7 +95,7 @@ def test():
     deidx2vocab=test_data.deidx2vocab
     enidx2vocab=test_data.enidx2vocab
     vocab2idx=test_data.devocab
-    model = Seq2Seq(envocab_size, devocab_size, n_hidden, rnn_cells, optimizer, dropout,one_step=True)
+    model = Seq2Seq(envocab_size, devocab_size, n_hidden, rnn_cells, optimizer, dropout,one_step=1)
     if os.path.isfile(checkpoint):
         print 'loading pretrained model:', checkpoint
         model = load_model(checkpoint, model)
@@ -173,8 +174,38 @@ def test():
             print
 
 
+def topk():
+    logger.info('loading dataset...')
+    test_data = TextIterator(test_datafile, vocab_file, n_batch, maxlen)
+    logger.info('building model...')
+    envocab_size = len(test_data.envocab)
+    devocab_size = len(test_data.devocab)
+    deidx2vocab = test_data.deidx2vocab
+    model = Seq2Seq(envocab_size, devocab_size, n_hidden, rnn_cells, optimizer, dropout,one_step=2)
+    if os.path.isfile(checkpoint):
+        print 'loading checkpoint parameters....', checkpoint
+        model = load_model(checkpoint, model)
+    if goto_line > 0:
+        test_data.goto_line(goto_line)
+        logger.info('goto line: %d' % goto_line)
+    logger.info('training start...')
+
+    for input_list in test_data:
+        topked,y,y_mask = model.topk(*input_list)
+        y=y.flatten()
+        y_mask=y_mask.flatten()
+        rol,col=topked.shape
+        for i in range(rol):
+            print deidx2vocab[y[i]],topked[i][y[i]]
+        print '='*40
+
+
+
+
 if __name__ == '__main__':
     if mode == 'train':
         train()
     elif mode == 'testing':
         test()
+    elif mode=='topk':
+        topk()
